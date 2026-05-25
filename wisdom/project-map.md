@@ -33,6 +33,14 @@ coup/
 │   └── auto-commit-push.sh   ← Commits all changes + pushes to GitHub on session end.
 │                                 Skips if no git repo or nothing changed. Safe to run always.
 │
+├── agents/
+│   └── phase-reviewer.md     ← ⭐ Code quality agent. Spawned after every phase (2+).
+│                                 Runs: tsc, jest, deliverable check, best-practice audit.
+│                                 Writes findings to wisdom/mistakes.md and good-practices.md.
+│                                 Gives PASS / PASS WITH WARNINGS / FAIL verdict.
+│                                 HOW TO INVOKE: Claude spawns it via the Agent tool after
+│                                 committing a phase. Do not skip — it is mandatory.
+│
 └── rules/
     ├── engine.md              ← Loaded ONLY when touching src/engine/**. Pure function rules.
     └── testing.md             ← Loaded ONLY when touching *.test.ts. Test naming/structure rules.

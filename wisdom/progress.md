@@ -7,15 +7,23 @@ Read this at the start of every session to know exactly where we are.
 
 ## Phase Status
 
-| Phase | Name | Status |
-|---|---|---|
-| 0 | Claude Code Project Setup | ✅ Done |
-| 1 | Expo Project Bootstrap | ✅ Done |
-| EAS | Development Build Setup | ⏳ In Progress (user building APK) |
-| 2 | Game Engine (pure logic) | 🔲 Not started |
-| 3 | Zustand Store | 🔲 Not started |
-| 4 | Screens & UI | 🔲 Not started |
-| 5 | Polish (animations, sound) | 🔲 Not started |
+| Phase | Name | Status | Review |
+|---|---|---|---|
+| 0 | Claude Code Project Setup | ✅ Done | ⏭ Skipped (no code) |
+| 1 | Expo Project Bootstrap | ✅ Done | ⏭ Skipped (no engine/store yet) |
+| EAS | Development Build Setup | ⏳ In Progress | — |
+| 2 | Game Engine (pure logic) | 🔲 Not started | 🔲 Pending |
+| 3 | Zustand Store | 🔲 Not started | 🔲 Pending |
+| 4 | Screens & UI | 🔲 Not started | 🔲 Pending |
+| 5 | Polish (animations, sound) | 🔲 Not started | 🔲 Pending |
+
+### Phase Completion Rule
+**After every phase from Phase 2 onwards:**
+1. Commit the work
+2. Spawn the `phase-reviewer` agent → `.claude/agents/phase-reviewer.md`
+3. Fix all ❌ FAIL items
+4. Update this table with review result
+5. Only then start the next phase
 
 ---
 

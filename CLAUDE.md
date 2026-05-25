@@ -31,6 +31,14 @@
 - No comments unless the WHY is non-obvious
 - No default exports from engine/ modules
 
+## Phase Completion Workflow (mandatory)
+After finishing ALL work for any phase:
+1. Commit the phase work
+2. Spawn the `phase-reviewer` agent (defined in `.claude/agents/phase-reviewer.md`)
+3. Fix every ❌ FAIL item the agent reports before moving to the next phase
+4. Update `wisdom/progress.md` with the review result
+Only then mark the phase ✅ Done and proceed.
+
 ## Session Start (read in this order)
 @wisdom/progress.md
 @wisdom/project-map.md
