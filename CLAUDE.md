@@ -32,5 +32,6 @@
 - No default exports from engine/ modules
 
 ## Wisdom (read before every task)
+@wisdom/react-native-best-practices.md
 @wisdom/mistakes.md
 @wisdom/good-practices.md
