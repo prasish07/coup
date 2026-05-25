@@ -17,7 +17,8 @@
 - `src/engine/` — pure game logic with NO React imports (unit-testable)
 - `src/store/gameStore.ts` — Zustand store wiring UI ↔ engine
 - `src/components/` — React Native UI components
-- `app/` — Expo Router screens
+- `src/app/` — Expo Router screens (stack: index → lobby → game → game-over)
+- Path alias `@/*` maps to `src/*` (e.g. `@/engine/types`)
 
 ## Critical Rules
 - Never mutate game state directly; always return new objects from engine functions
