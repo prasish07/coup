@@ -1,6 +1,6 @@
 # Project Progress
 
-Last updated: 2026-05-25
+Last updated: 2026-05-26
 Read this at the start of every session to know exactly where we are.
 
 ---
@@ -12,7 +12,7 @@ Read this at the start of every session to know exactly where we are.
 | 0 | Claude Code Project Setup | ✅ Done | ⏭ Skipped (no code) |
 | 1 | Expo Project Bootstrap | ✅ Done | ⏭ Skipped (no engine/store yet) |
 | EAS | Development Build Setup | ⏳ In Progress | — |
-| 2 | Game Engine (pure logic) | 🔲 Not started | 🔲 Pending |
+| 2 | Game Engine (pure logic) | ✅ Done (reviewed — warnings, see wisdom/mistakes.md) | ⚠️ PASS WITH WARNINGS |
 | 3 | Zustand Store | 🔲 Not started | 🔲 Pending |
 | 4 | Screens & UI | 🔲 Not started | 🔲 Pending |
 | 5 | Polish (animations, sound) | 🔲 Not started | 🔲 Pending |
@@ -97,7 +97,11 @@ Read this at the start of every session to know exactly where we are.
 
 ---
 
-## Phase 2 — Game Engine 🔲
+## Phase 2 — Game Engine ✅ (reviewed — warnings)
+
+**Review result:** PASS WITH WARNINGS
+**Review date:** 2026-05-26
+**Findings:** 59 tests passing, 0 TypeScript errors. Three warnings all resolved post-review: (1) Added tests for `getBlockers` and `getChallengeEligible` — now 67 tests total; (2) W2 noted for Phase 3 store — `nextTurn` must call `resolveAction` when `pending` is set after a failed block challenge; (3) Extracted `ACTION_CLAIMED_CHARACTER` to `types.ts`, deleted duplicates from `actions.ts` and `challenges.ts`.
 
 **Goal:** Pure TypeScript logic in `src/engine/` — zero React imports.
 
