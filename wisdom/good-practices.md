@@ -19,6 +19,16 @@ Approaches that worked well. Read before starting any new task.
 **Why it worked:** This correctly enforces the critical Coup rule that assassination costs 3 coins even if the action is later blocked. The cost is a sunk cost at declaration time, not resolution time.
 **Rule:** Action costs are always applied at `submitAction` time — never at `resolveAction` time. This must be preserved in Phase 3 when the store wires `submitAction`.
 
+## Store orchestration helpers kept inside the store file (Phase 3)
+**What was done:** Turn-advancement helpers (`nextActivePlayer`, `advanceTurn`) and AI-chaining helpers (`maybeRunAITurn`, `maybeRunAIResponses`) are private (unexported) functions defined at the bottom of `game-store.ts`. They call engine functions and compose their results but contain no Coup rule logic themselves.
+**Why it worked:** Keeps the public store actions thin (each action is 5–10 lines), while the coordination boilerplate is factored out without leaking into the engine. Because these helpers are unexported they have zero surface area — if they need to change, the change stays inside the store file.
+**Rule:** Private coordination helpers in the store are fine as long as they (a) only call engine functions and compose their return values, (b) are not exported, and (c) contain no Coup-rule logic (no coin calculations, no influence tracking, no challenge outcome decisions).
+
+## W2 state-machine fix: detect blocker-was-exposed at store boundary (Phase 3)
+**What was done:** The W2 bug (failed block challenge drops the original action) was fixed in `revealCard` in the store. After `loseInfluence` runs, the store inspects `prevState` (captured before the engine call) to detect whether the loserId was the blocker. If so, it replays `resolveAction` with the still-live `pending` from `prevState`.
+**Why it worked:** The engine remains pure — `loseInfluence` cannot call `resolveAction` because that would be a policy decision embedded in a low-level primitive. The store is the right place to own multi-step sequence logic. Capturing `prevState` before the engine call and then reasoning about it is the clean pattern for this kind of "what just happened" detection.
+**Rule:** When a multi-step game sequence (block → challenge → reveal → resolve) has a branch that must chain two engine calls, implement the chain in the store action, not in the engine. Capture state before the first engine call so the subsequent branch condition can be evaluated cleanly.
+
 <!-- Add entries when something works especially well. Format:
 
 ## [Short title]

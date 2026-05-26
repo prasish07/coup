@@ -13,7 +13,7 @@ Read this at the start of every session to know exactly where we are.
 | 1 | Expo Project Bootstrap | ✅ Done | ⏭ Skipped (no engine/store yet) |
 | EAS | Development Build Setup | ⏳ In Progress | — |
 | 2 | Game Engine (pure logic) | ✅ Done (reviewed — warnings, see wisdom/mistakes.md) | ⚠️ PASS WITH WARNINGS |
-| 3 | Zustand Store | 🔲 Not started | 🔲 Pending |
+| 3 | Zustand Store | ✅ Done (reviewed — warnings, see wisdom/mistakes.md) | ⚠️ PASS WITH WARNINGS |
 | 4 | Screens & UI | 🔲 Not started | 🔲 Pending |
 | 5 | Polish (animations, sound) | 🔲 Not started | 🔲 Pending |
 
@@ -135,7 +135,11 @@ src/engine/
 
 ---
 
-## Phase 3 — Zustand Store 🔲
+## Phase 3 — Zustand Store ✅ (reviewed — warnings)
+
+**Review result:** PASS WITH WARNINGS
+**Review date:** 2026-05-26
+**Findings:** 90 tests passing (23 store tests), 0 TypeScript errors. One warning: `getBlockCharacter` helper uses `string` instead of `ActionType` as its key type, and duplicates block-character mappings already in `ACTION_CLAIMED_CHARACTER`. Not a blocker for Phase 4 but should be tightened. W2 fix correctly implemented and verified by dedicated test. All 8 planned store actions are present and tested.
 
 **Goal:** Wire engine → UI via `src/store/game-store.ts`.
 

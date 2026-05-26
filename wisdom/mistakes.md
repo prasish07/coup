@@ -19,6 +19,11 @@ Things that went wrong during this project. Read before starting any new task.
 **Why it was wrong:** DRY violation — if a character mapping changes (e.g. `block_steal` allowed by Ambassador only) it must be updated in two places and the second copy is easy to miss.
 **Rule:** Shared lookup tables that are needed by more than one engine module should live in `types.ts` or a dedicated `constants.ts` inside `src/engine/`, then imported by both consumers.
 
+## Loose `string` key type in store's getBlockCharacter helper (Phase 3)
+**What happened:** `getBlockCharacter` in `game-store.ts` declares its first parameter as `actionType: string` and uses `Partial<Record<string, CharacterName[]>>` for its lookup map, even though the caller always passes `next.pending.type` which is typed as `ActionType`.
+**Why it was wrong:** The `string` key widens the type unnecessarily. If a new `ActionType` variant is added, TypeScript won't flag the missing block-map entry at compile time the way it would with `Partial<Record<ActionType, CharacterName[]>>`. It also duplicates block-character knowledge that already exists in `ACTION_CLAIMED_CHARACTER` in `types.ts`.
+**Rule:** When a store helper uses a lookup keyed on a union type, use the exact union (`ActionType`, not `string`) so TypeScript can enforce exhaustiveness. Prefer importing `ACTION_CLAIMED_CHARACTER` from `types.ts` instead of re-defining block mappings in the store.
+
 <!-- Add entries as mistakes are discovered. Format:
 
 ## [Short title]

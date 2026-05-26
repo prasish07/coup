@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { GameState, ValidAction, PlayerSetup, PendingBlock, CharacterName } from '@/engine/types';
+import type { GameState, ValidAction, PlayerSetup, PendingBlock, CharacterName, ActionType } from '@/engine/types';
 import {
   initGame,
   submitAction as engineSubmitAction,
@@ -231,11 +231,11 @@ function maybeRunAITurn(state: GameState): GameState {
 }
 
 function getBlockCharacter(
-  actionType: string,
+  actionType: ActionType,
   aiId: string,
   state: GameState
 ): CharacterName | null {
-  const blockMap: Partial<Record<string, CharacterName[]>> = {
+  const blockMap: Partial<Record<ActionType, CharacterName[]>> = {
     foreign_aid: ['Duke'],
     assassinate: ['Contessa'],
     steal: ['Captain', 'Ambassador'],
