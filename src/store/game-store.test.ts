@@ -257,6 +257,71 @@ describe('selectExchangeCards', () => {
   });
 });
 
+describe('revealCard — failed challenge resolution', () => {
+  it('should still resolve the original action after a failed challenge (W3 fix)', () => {
+    // Human p1 challenges AI p2 claiming Duke for tax — p2 HAS Duke, challenge fails
+    // After p1 reveals their card, p2 should STILL get the 3 coins from tax
+    setState(makeState({
+      phase: 'lose_influence',
+      loserId: 'p1',
+      currentPlayerId: 'p2',
+      pending: { type: 'tax', playerId: 'p2', claimedCharacter: 'Duke' },
+      pendingBlock: null,
+      players: [
+        makePlayer('p1', { coins: 2, cards: [makeCard('Assassin'), makeCard('Captain')] }),
+        makePlayer('p2', { isAI: true, coins: 2 }),
+      ],
+    }));
+    getStore().revealCard(0);
+    const gs = getStore().gameState!;
+    // p2 should have received 3 coins from tax
+    expect(gs.players[1].coins).toBe(5);
+    // p1's card should be revealed
+    expect(gs.players[0].cards[0].revealed).toBe(true);
+  });
+
+  it('should NOT resolve action when bluff was exposed (type changed to income)', () => {
+    // Human p1 challenges AI p2 claiming Duke — p2 does NOT have Duke (bluffing)
+    // pending.type was changed to 'income' by resolveChallenge to cancel the action
+    setState(makeState({
+      phase: 'lose_influence',
+      loserId: 'p2',
+      currentPlayerId: 'p2',
+      pending: { type: 'income', playerId: 'p2', claimedCharacter: 'Duke' },
+      pendingBlock: null,
+      players: [
+        makePlayer('p1', { coins: 2 }),
+        makePlayer('p2', { isAI: true, coins: 2 }),
+      ],
+    }));
+    getStore().revealCard(0);
+    const gs = getStore().gameState!;
+    // p2 should NOT have received coins (bluff was exposed, action cancelled)
+    expect(gs.players[1].coins).toBe(2);
+  });
+
+  it('should run AI automation after maybeRunAITurn produces lose_influence', () => {
+    // After human reveals a card, the next AI takes coup against another AI
+    // The AI coup target should auto-reveal (not get stuck in thinking)
+    setState(makeState({
+      phase: 'lose_influence',
+      loserId: 'p1',
+      currentPlayerId: 'p2',
+      pending: { type: 'tax', playerId: 'p2', claimedCharacter: 'Duke' },
+      players: [
+        makePlayer('p1', { coins: 2 }),
+        makePlayer('p2', { isAI: true, coins: 10 }), // has 10 coins, will coup
+        makePlayer('p3', { isAI: true, coins: 2 }),
+      ],
+      deck: [makeCard('Duke'), makeCard('Contessa'), makeCard('Captain'), makeCard('Ambassador')],
+    }));
+    getStore().revealCard(0);
+    const gs = getStore().gameState!;
+    // Game should not be stuck in lose_influence or thinking
+    expect(gs.phase).not.toBe('lose_influence');
+  });
+});
+
 describe('AI automation', () => {
   it('should auto-reveal AI card when bluff is exposed by human challenge', () => {
     // p2 (AI) claims tax bluffing — no Duke

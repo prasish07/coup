@@ -130,14 +130,22 @@ export const useGameStore = create<GameStore>((set) => ({
 
       if (next.phase === 'game_over') return { gameState: next };
 
-      // W2 fix: if the blocker's bluff was exposed, the original action must still resolve.
-      // loseInfluence clears pending, so we use prevState to detect this case.
+      // W2: block was challenged and blocker's bluff exposed — original action still resolves
       const blockerWasExposed =
         prevState.pending !== null &&
         prevState.pendingBlock !== null &&
         prevState.loserId === prevState.pendingBlock.blockerId;
 
-      if (blockerWasExposed && next.phase === 'action') {
+      // W3: direct challenge failed (actor had the card) — challenger loses influence
+      //     but the original action must STILL resolve (tax gives coins, steal takes, etc.)
+      //     Bluffing case is detected by pending.type === 'income' (engine sets it to cancel action)
+      const failedChallengeNeedsResolution =
+        prevState.pending !== null &&
+        prevState.pendingBlock === null &&
+        prevState.pending.type !== 'income' &&
+        prevState.loserId !== prevState.pending.playerId;
+
+      if ((blockerWasExposed || failedChallengeNeedsResolution) && next.phase === 'action') {
         next = resolveAction({ ...next, pending: prevState.pending });
       }
 
@@ -145,6 +153,10 @@ export const useGameStore = create<GameStore>((set) => ({
         next = advanceTurn(next);
         next = maybeRunAITurn(next);
       }
+
+      // Always run AI automation at the end — maybeRunAITurn can leave the game in
+      // lose_influence or exchange_select if an AI targets another AI mid-chain
+      next = maybeRunAIAutomation(next);
 
       return { gameState: next };
     }),
