@@ -36,23 +36,33 @@ export function ResponseBar({
 }: Props) {
   const [seconds, setSeconds] = useState(autoPassSeconds);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hasAutoPassedRef = useRef(false);
 
+  // Reset timer whenever the action being responded to changes
   useEffect(() => {
     setSeconds(autoPassSeconds);
+    hasAutoPassedRef.current = false;
+    if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
-      setSeconds((s) => {
-        if (s <= 1) {
-          clearInterval(timerRef.current!);
-          onPass();
-          return 0;
-        }
-        return s - 1;
-      });
+      setSeconds((s) => Math.max(0, s - 1));
     }, 1000);
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [responderId, phase, onPass, autoPassSeconds]);
+    // Include pending info so timer resets when a new action comes up
+    // even if same responder and same phase
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [responderId, phase, autoPassSeconds, pending?.playerId, pending?.type]);
+
+  // Call onPass in a separate effect to avoid "Cannot update a component" warning
+  // (calling store actions inside setState updater triggers the warning)
+  useEffect(() => {
+    if (seconds === 0 && !hasAutoPassedRef.current) {
+      hasAutoPassedRef.current = true;
+      onPass();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seconds]);
 
   const canChallenge =
     phase === 'challenge_action'
