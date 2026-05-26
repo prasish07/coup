@@ -24,6 +24,26 @@ Things that went wrong during this project. Read before starting any new task.
 **Why it was wrong:** The `string` key widens the type unnecessarily. If a new `ActionType` variant is added, TypeScript won't flag the missing block-map entry at compile time the way it would with `Partial<Record<ActionType, CharacterName[]>>`. It also duplicates block-character knowledge that already exists in `ACTION_CLAIMED_CHARACTER` in `types.ts`.
 **Rule:** When a store helper uses a lookup keyed on a union type, use the exact union (`ActionType`, not `string`) so TypeScript can enforce exhaustiveness. Prefer importing `ACTION_CLAIMED_CHARACTER` from `types.ts` instead of re-defining block mappings in the store.
 
+## Array index used as FlatList keyExtractor in GameLog (Phase 4)
+**What happened:** `GameLog.tsx` uses `keyExtractor={(_, i) => String(i)}` on its FlatList. The data (`recent`) is a reversed slice of the log array — plain strings with no stable IDs.
+**Why it was wrong:** Array index as a key corrupts reconciliation when items reorder, insert, or delete. The best-practices guide lists this as anti-pattern #5. Even though GameLog only appends (new entries appear at the front after reversing), a dedicated stable key (e.g. log-entry index from the original array position) would be safer and follows the rule unconditionally.
+**Rule:** Never pass array position to `keyExtractor`. For log strings, derive the key from the original array index before reversing: `log.slice(-3).map((entry, i) => ({ entry, key: String(log.length - 3 + i) }))` and then `keyExtractor={(item) => item.key}`.
+
+## Loose `string` key type in ResponseBar's BLOCK_CHARS lookup (Phase 4)
+**What happened:** `ResponseBar.tsx` declares `const BLOCK_CHARS: Partial<Record<string, CharacterName[]>>` using `string` as the key type, then indexes it with `pending.type` which is `ActionType`. Same pattern as the Phase 3 store mistake.
+**Why it was wrong:** `Partial<Record<ActionType, CharacterName[]>>` would let TypeScript flag any new `ActionType` variant that is blockable but missing from the map. The `string` widening silently drops that compile-time coverage. It also re-defines block-character mappings that already exist in `ACTION_CLAIMED_CHARACTER` in `types.ts`.
+**Rule:** Any lookup table keyed on a union type must use that union as the record key, not `string`. Import and reuse `ACTION_CLAIMED_CHARACTER` from `@/engine/types` rather than defining parallel maps in UI components.
+
+## useEffect with empty deps array reads setup param and startGame without listing them (Phase 4)
+**What happened:** In `game.tsx` lines 55–61, `useEffect(() => { startGame(...) }, [])` uses `setup` (from `useLocalSearchParams`) and `startGame` (from Zustand) but lists neither in the dependency array.
+**Why it was wrong:** This violates the `react-hooks/exhaustive-deps` rule. Even though both values are stable in practice (params don't change after navigation, Zustand functions have referential identity), a linter-clean project should either list the deps or add an explicit `// eslint-disable-next-line` with a justification comment explaining why the empty array is intentional.
+**Rule:** Every `useEffect` must either list all referenced values in its deps array, or carry an explicit suppression comment that names the reason the omission is intentional (e.g. `// run only on mount — setup and startGame are stable by design`).
+
+## isActive prop declared in PlayerBoard interface but never applied in JSX (Phase 4)
+**What happened:** `PlayerBoard.tsx` declares `isActive?: boolean` in its `Props` interface and destructures it with a default value of `false`, but the prop is never referenced anywhere in the component body or JSX.
+**Why it was wrong:** Dead code in a public interface is confusing — callers may pass the prop expecting an effect, and future maintainers may not realise it does nothing. TypeScript `strict` mode does not flag unused destructured parameters, so this silently accumulates.
+**Rule:** Every prop in a component's `Props` interface must be actively used in the JSX or component logic. If a prop is not yet implemented, either add the implementation or remove it from the interface.
+
 <!-- Add entries as mistakes are discovered. Format:
 
 ## [Short title]

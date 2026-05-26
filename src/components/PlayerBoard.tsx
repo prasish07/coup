@@ -6,12 +6,11 @@ import { Spacing } from '@/constants/theme';
 interface Props {
   player: Player;
   faceUp: boolean;
-  isActive?: boolean;
   isCurrentTurn?: boolean;
   onCardPress?: (cardIndex: number) => void;
 }
 
-export function PlayerBoard({ player, faceUp, isActive = false, isCurrentTurn = false, onCardPress }: Props) {
+export function PlayerBoard({ player, faceUp, isCurrentTurn = false, onCardPress }: Props) {
   const isEliminated = player.cards.every((c) => c.revealed);
 
   return (

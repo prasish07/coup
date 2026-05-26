@@ -29,6 +29,16 @@ Approaches that worked well. Read before starting any new task.
 **Why it worked:** The engine remains pure — `loseInfluence` cannot call `resolveAction` because that would be a policy decision embedded in a low-level primitive. The store is the right place to own multi-step sequence logic. Capturing `prevState` before the engine call and then reasoning about it is the clean pattern for this kind of "what just happened" detection.
 **Rule:** When a multi-step game sequence (block → challenge → reveal → resolve) has a branch that must chain two engine calls, implement the chain in the store action, not in the engine. Capture state before the first engine call so the subsequent branch condition can be evaluated cleanly.
 
+## Reanimated 4 card flip using transform-only animation (Phase 4)
+**What was done:** `CardFace.tsx` implements the card flip with `useSharedValue`, `useAnimatedStyle`, `interpolate`, and `withTiming`, animating only `transform: [{ rotateY }]` and `opacity`. Width and height are static in `StyleSheet.create`. The `'worklet'` directive is omitted because Reanimated 4 automatically treats `useAnimatedStyle` callbacks as worklets via its Babel plugin.
+**Why it worked:** No layout recalculation occurs per frame (anti-pattern #11 avoided). The front/back faces are two absolutely-positioned `Animated.View` layers on a fixed-size container, so the flip is purely a transform — 60fps capable on the UI thread.
+**Rule:** For card-flip animations: use two `Animated.View` layers with `StyleSheet.absoluteFill` inside a fixed-size container, `rotateY` transform on each, and `opacity` switching at the midpoint. Never animate `width`/`height` for cosmetic transitions.
+
+## getActiveHumanId helper lifted above the screen component (Phase 4)
+**What was done:** The logic that determines which (if any) human player needs to act in the current phase is extracted into a standalone `getActiveHumanId(state: GameState): string | null` function at module level, before the `GameScreen` component definition.
+**Why it worked:** Keeps the component function body free of phase-switching logic. The helper is a pure function of `GameState` — it is trivially testable if needed and clearly separated from rendering concerns. It could be unit tested without mounting the component.
+**Rule:** When a component needs to derive a non-trivial value from game state (especially phase-based branching), extract the derivation into a module-level pure function before the component. This keeps the component body readable and the logic independently auditable.
+
 <!-- Add entries when something works especially well. Format:
 
 ## [Short title]

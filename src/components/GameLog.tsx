@@ -6,15 +6,18 @@ interface Props {
 }
 
 export function GameLog({ log }: Props) {
-  const recent = log.slice(-3).reverse();
+  const recent = log
+    .slice(-3)
+    .map((entry, i) => ({ entry, key: String(log.length - 3 + i) }))
+    .reverse();
 
   return (
     <View style={styles.container}>
       <FlatList
         data={recent}
-        keyExtractor={(_, i) => String(i)}
+        keyExtractor={(item) => item.key}
         renderItem={({ item, index }) => (
-          <Text style={[styles.entry, index === 0 && styles.latest]}>{item}</Text>
+          <Text style={[styles.entry, index === 0 && styles.latest]}>{item.entry}</Text>
         )}
         scrollEnabled={false}
       />

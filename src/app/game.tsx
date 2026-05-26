@@ -57,6 +57,7 @@ export default function GameScreen() {
       const players = JSON.parse(setup) as PlayerSetup[];
       startGame(players);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount; setup and startGame are stable by design
   }, []);
 
   useEffect(() => {

@@ -14,7 +14,7 @@ Read this at the start of every session to know exactly where we are.
 | EAS | Development Build Setup | ⏳ In Progress | — |
 | 2 | Game Engine (pure logic) | ✅ Done (reviewed — warnings, see wisdom/mistakes.md) | ⚠️ PASS WITH WARNINGS |
 | 3 | Zustand Store | ✅ Done (reviewed — warnings, see wisdom/mistakes.md) | ⚠️ PASS WITH WARNINGS |
-| 4 | Screens & UI | 🔲 Not started | 🔲 Pending |
+| 4 | Screens & UI | ✅ Done (reviewed — warnings, see wisdom/mistakes.md) | ⚠️ PASS WITH WARNINGS |
 | 5 | Polish (animations, sound) | 🔲 Not started | 🔲 Pending |
 
 ### Phase Completion Rule
@@ -162,7 +162,11 @@ const { gameState } = useGameStore();
 
 ---
 
-## Phase 4 — Screens & UI 🔲
+## Phase 4 — Screens & UI ✅ (reviewed — warnings)
+
+**Review result:** PASS WITH WARNINGS
+**Review date:** 2026-05-26
+**Findings:** 90 tests passing, 0 TypeScript errors. All 6 planned files present and correct. Four warnings: (1) `GameLog` uses array index as `keyExtractor` — anti-pattern #5; (2) `ResponseBar.BLOCK_CHARS` uses `string` key instead of `ActionType` — repeats Phase 3 mistake; (3) `game.tsx` first `useEffect` has empty deps but references `setup` and `startGame` — exhaustive-deps violation; (4) `PlayerBoard.isActive` prop declared in interface but never used in JSX. No business logic in screens/components. All styles in `StyleSheet.create`. No `any` types.
 
 **Goal:** Replace placeholder screens with real game UI.
 

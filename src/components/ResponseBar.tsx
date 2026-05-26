@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import type { Card, CharacterName, PendingAction, PendingBlock, Phase } from '@/engine/types';
+import type { ActionType, Card, CharacterName, PendingAction, PendingBlock, Phase } from '@/engine/types';
 import { Spacing } from '@/constants/theme';
 
 interface Props {
@@ -16,7 +16,7 @@ interface Props {
   autoPassSeconds?: number;
 }
 
-const BLOCK_CHARS: Partial<Record<string, CharacterName[]>> = {
+const BLOCK_CHARS: Partial<Record<ActionType, CharacterName[]>> = {
   foreign_aid: ['Duke'],
   assassinate: ['Contessa'],
   steal: ['Captain', 'Ambassador'],
