@@ -5,16 +5,17 @@ import type {
   ValidAction,
   CharacterName,
   PlayerSetup,
+  ActionType,
 } from './types';
 import { ACTION_CLAIMED_CHARACTER } from './types';
 import { createDeck, shuffle } from './deck';
 
-const ACTION_COST: Partial<Record<string, number>> = {
+const ACTION_COST: Partial<Record<ActionType, number>> = {
   coup: 7,
   assassinate: 3,
 };
 
-const BLOCKER_CHARACTERS: Partial<Record<string, CharacterName[]>> = {
+const BLOCKER_CHARACTERS: Partial<Record<ActionType, CharacterName[]>> = {
   foreign_aid: ['Duke'],
   assassinate: ['Contessa'],
   steal: ['Captain', 'Ambassador'],
@@ -264,10 +265,10 @@ export function resolveExchangeSelect(
   const player = state.players.find((p) => p.id === exchangeState.playerId);
   if (!player) return state;
 
-  const activePLayerCards = player.cards.filter((c) => !c.revealed);
-  const allOptions = [...activePLayerCards, ...exchangeState.drawnCards];
+  const activePlayerCards = player.cards.filter((c) => !c.revealed);
+  const allOptions = [...activePlayerCards, ...exchangeState.drawnCards];
 
-  if (keptIndices.length !== activePLayerCards.length) return state;
+  if (keptIndices.length !== activePlayerCards.length) return state;
 
   const kept = keptIndices.map((i) => allOptions[i]);
   const returned = allOptions.filter((_, i) => !keptIndices.includes(i));
@@ -282,7 +283,7 @@ export function resolveExchangeSelect(
     ...state,
     players: updatedPlayers,
     deck: shuffle([...state.deck, ...returned]),
-    phase: 'resolve',
+    phase: 'action',
     exchangeState: null,
   };
 }

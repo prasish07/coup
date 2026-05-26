@@ -11,6 +11,50 @@ import { GameLog } from '@/components/GameLog';
 import { CardFace } from '@/components/CardFace';
 import { Spacing } from '@/constants/theme';
 
+interface ExchangeProps {
+  gameState: GameState;
+  selected: number[];
+  onToggle: (i: number, keepCount: number) => void;
+  onConfirm: (indices: number[]) => void;
+}
+
+function ExchangeSelector({ gameState, selected, onToggle, onConfirm }: ExchangeProps) {
+  const exchanger = gameState.players.find(
+    (p) => p.id === gameState.exchangeState!.playerId
+  )!;
+  const keepCount = exchanger.cards.filter((c) => !c.revealed).length;
+  const allOptions = [
+    ...exchanger.cards.filter((c) => !c.revealed),
+    ...gameState.exchangeState!.drawnCards,
+  ];
+
+  return (
+    <View style={styles.exchangeContainer}>
+      <Text style={styles.exchangeTitle}>
+        Choose {keepCount} card{keepCount !== 1 ? 's' : ''} to keep
+      </Text>
+      <View style={styles.exchangeCards}>
+        {allOptions.map((card, i) => (
+          <TouchableOpacity
+            key={`${card.character}-${i}`}
+            onPress={() => onToggle(i, keepCount)}
+            style={[styles.exchangeCard, selected.includes(i) && styles.exchangeCardSelected]}
+          >
+            <CardFace character={card.character} faceUp revealed={false} />
+          </TouchableOpacity>
+        ))}
+      </View>
+      <TouchableOpacity
+        style={[styles.confirmBtn, selected.length !== keepCount && styles.confirmBtnDisabled]}
+        onPress={() => onConfirm(selected)}
+        disabled={selected.length !== keepCount}
+      >
+        <Text style={styles.confirmBtnText}>Confirm</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 function getActiveHumanId(state: GameState): string | null {
   const { phase, players, pending, pendingBlock, loserId, exchangeState } = state;
   const isActive = (id: string) =>
@@ -150,47 +194,14 @@ export default function GameScreen() {
         )}
 
         {/* Exchange card selection */}
-        {isExchangeSelect && gameState.exchangeState && (() => {
-          const exchanger = gameState.players.find(
-            (p) => p.id === gameState.exchangeState!.playerId
-          )!;
-          const keepCount = exchanger.cards.filter((c) => !c.revealed).length;
-          const allOptions = [
-            ...exchanger.cards.filter((c) => !c.revealed),
-            ...gameState.exchangeState.drawnCards,
-          ];
-          return (
-            <View style={styles.exchangeContainer}>
-              <Text style={styles.exchangeTitle}>
-                Choose {keepCount} card{keepCount !== 1 ? 's' : ''} to keep
-              </Text>
-              <View style={styles.exchangeCards}>
-                {allOptions.map((card, i) => (
-                  <TouchableOpacity
-                    key={i}
-                    onPress={() => handleExchangeToggle(i, keepCount)}
-                    style={[
-                      styles.exchangeCard,
-                      exchangeSelected.includes(i) && styles.exchangeCardSelected,
-                    ]}
-                  >
-                    <CardFace character={card.character} faceUp revealed={false} />
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <TouchableOpacity
-                style={[
-                  styles.confirmBtn,
-                  exchangeSelected.length !== keepCount && styles.confirmBtnDisabled,
-                ]}
-                onPress={() => selectExchangeCards(exchangeSelected)}
-                disabled={exchangeSelected.length !== keepCount}
-              >
-                <Text style={styles.confirmBtnText}>Confirm</Text>
-              </TouchableOpacity>
-            </View>
-          );
-        })()}
+        {isExchangeSelect && gameState.exchangeState && (
+          <ExchangeSelector
+            gameState={gameState}
+            selected={exchangeSelected}
+            onToggle={handleExchangeToggle}
+            onConfirm={selectExchangeCards}
+          />
+        )}
 
         {/* AI thinking indicator */}
         {!activeHumanId && !isLoseInfluence && !isExchangeSelect && (

@@ -52,7 +52,7 @@ export function ResponseBar({
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [responderId, phase]);
+  }, [responderId, phase, onPass, autoPassSeconds]);
 
   const canChallenge =
     phase === 'challenge_action'

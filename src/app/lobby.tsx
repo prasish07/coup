@@ -59,7 +59,7 @@ export default function LobbyScreen() {
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         {activeSlots.map((slot, i) => (
-          <View key={i} style={styles.slot}>
+          <View key={slot.name + i} style={styles.slot}>
             <Text style={styles.slotNum}>{i + 1}</Text>
             <TextInput
               style={styles.nameInput}
