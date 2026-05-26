@@ -257,6 +257,58 @@ describe('selectExchangeCards', () => {
   });
 });
 
+describe('AI automation', () => {
+  it('should auto-reveal AI card when bluff is exposed by human challenge', () => {
+    // p2 (AI) claims tax bluffing — no Duke
+    setState(makeState({
+      phase: 'challenge_action',
+      pending: { type: 'tax', playerId: 'p2', claimedCharacter: 'Duke' },
+      players: [
+        makePlayer('p1'),
+        makePlayer('p2', { isAI: true, cards: [makeCard('Assassin'), makeCard('Captain')] }),
+      ],
+      deck: [makeCard('Duke'), makeCard('Contessa'), makeCard('Duke')],
+    }));
+    getStore().submitChallenge('p1');
+    const gs = getStore().gameState!;
+    // p2 (AI) should have auto-revealed — game must have advanced past lose_influence
+    expect(gs.phase).not.toBe('lose_influence');
+    expect(gs.players[1].cards.some((c) => c.revealed)).toBe(true);
+  });
+
+  it('should auto-reveal AI card when targeted by coup', () => {
+    setState(makeState({
+      players: [
+        makePlayer('p1', { coins: 7 }),
+        makePlayer('p2', { isAI: true }),
+      ],
+      deck: [makeCard('Duke'), makeCard('Contessa'), makeCard('Duke')],
+    }));
+    getStore().submitAction({ type: 'coup', targetId: 'p2' });
+    const gs = getStore().gameState!;
+    expect(gs.phase).not.toBe('lose_influence');
+    expect(gs.players[1].cards.some((c) => c.revealed)).toBe(true);
+  });
+
+  it('should auto-exchange cards for AI when human passes the challenge', () => {
+    // p2 (AI) claims exchange — human p1 passes — exchange_select fires for AI p2
+    setState(makeState({
+      phase: 'challenge_action',
+      currentPlayerId: 'p2',
+      pending: { type: 'exchange', playerId: 'p2', claimedCharacter: 'Ambassador' },
+      players: [
+        makePlayer('p1'),
+        makePlayer('p2', { isAI: true }),
+      ],
+      deck: [makeCard('Contessa'), makeCard('Duke'), makeCard('Captain')],
+    }));
+    getStore().submitPass();
+    const gs = getStore().gameState!;
+    // AI should have auto-selected cards — must not be stuck at exchange_select
+    expect(gs.phase).not.toBe('exchange_select');
+  });
+});
+
 describe('resetGame', () => {
   it('should clear game state', () => {
     getStore().startGame([{ name: 'A', isAI: false }, { name: 'B', isAI: false }]);

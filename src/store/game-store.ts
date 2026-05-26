@@ -69,6 +69,7 @@ export const useGameStore = create<GameStore>((set) => ({
         next = maybeRunAITurn(next);
       } else {
         next = maybeRunAIResponses(next);
+        next = maybeRunAIAutomation(next);
       }
       return { gameState: next };
     }),
@@ -85,7 +86,7 @@ export const useGameStore = create<GameStore>((set) => ({
       } else {
         return store;
       }
-      return { gameState: next };
+      return { gameState: maybeRunAIAutomation(next) };
     }),
 
   submitBlock: (block) =>
@@ -105,6 +106,8 @@ export const useGameStore = create<GameStore>((set) => ({
         if (next.phase === 'action') {
           next = advanceTurn(next);
           next = maybeRunAITurn(next);
+        } else {
+          next = maybeRunAIAutomation(next);
         }
       } else if (phase === 'challenge_block') {
         next = passBlock(store.gameState);
@@ -205,7 +208,8 @@ function maybeRunAIResponses(state: GameState): GameState {
       next = advanceTurn(next);
       return maybeRunAITurn(next);
     }
-    return maybeRunAIResponses(next);
+    // passChallenge resolved to lose_influence or exchange_select — run AI automation
+    return maybeRunAIAutomation(next);
   }
 
   if (next.phase === 'challenge_block') {
@@ -215,6 +219,53 @@ function maybeRunAIResponses(state: GameState): GameState {
   }
 
   return next;
+}
+
+function maybeRunAIAutomation(state: GameState): GameState {
+  // AI auto-reveal when an AI player must lose influence
+  if (state.phase === 'lose_influence' && state.loserId) {
+    const loser = state.players.find((p) => p.id === state.loserId);
+    if (loser?.isAI) {
+      const cardIndex = loser.cards.findIndex((c) => !c.revealed);
+      if (cardIndex === -1) return state;
+
+      const prevState = state;
+      let next = loseInfluence(state, cardIndex);
+
+      if (next.phase === 'game_over') return next;
+
+      const blockerWasExposed =
+        prevState.pending !== null &&
+        prevState.pendingBlock !== null &&
+        prevState.loserId === prevState.pendingBlock.blockerId;
+
+      if (blockerWasExposed && next.phase === 'action') {
+        next = resolveAction({ ...next, pending: prevState.pending });
+      }
+
+      if (next.phase === 'action') {
+        next = advanceTurn(next);
+        next = maybeRunAITurn(next);
+      }
+
+      return maybeRunAIAutomation(next);
+    }
+  }
+
+  // AI auto-exchange when an AI player must select exchange cards
+  if (state.phase === 'exchange_select' && state.exchangeState) {
+    const exchanger = state.players.find((p) => p.id === state.exchangeState!.playerId);
+    if (exchanger?.isAI) {
+      const keepCount = exchanger.cards.filter((c) => !c.revealed).length;
+      // Keep own cards (first keepCount indices), discard drawn cards
+      const keptIndices = Array.from({ length: keepCount }, (_, i) => i);
+      let next = resolveExchangeSelect(state, keptIndices);
+      next = advanceTurn(next);
+      return maybeRunAITurn(next);
+    }
+  }
+
+  return state;
 }
 
 function maybeRunAITurn(state: GameState): GameState {
