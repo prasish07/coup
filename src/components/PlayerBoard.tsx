@@ -1,4 +1,12 @@
+import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import type { Player } from '@/engine/types';
 import { CardFace } from './CardFace';
 import { Spacing } from '@/constants/theme';
@@ -12,6 +20,23 @@ interface Props {
 
 export function PlayerBoard({ player, faceUp, isCurrentTurn = false, onCardPress }: Props) {
   const isEliminated = player.cards.every((c) => c.revealed);
+  const coinScale = useSharedValue(1);
+  const coinColor = useSharedValue(0);
+
+  useEffect(() => {
+    coinScale.value = withSequence(
+      withTiming(1.5, { duration: 120 }),
+      withSpring(1, { damping: 6, stiffness: 200 })
+    );
+    coinColor.value = withSequence(
+      withTiming(1, { duration: 120 }),
+      withTiming(0, { duration: 400 })
+    );
+  }, [player.coins]);
+
+  const coinBadgeStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: coinScale.value }],
+  }));
 
   return (
     <View style={[styles.container, isCurrentTurn && styles.activeBorder, isEliminated && styles.eliminated]}>
@@ -20,14 +45,14 @@ export function PlayerBoard({ player, faceUp, isCurrentTurn = false, onCardPress
           {player.name}
           {player.isAI ? ' 🤖' : ''}
         </Text>
-        <View style={styles.coins}>
+        <Animated.View style={[styles.coins, coinBadgeStyle]}>
           <Text style={styles.coinSymbol}>●</Text>
           <Text style={styles.coinCount}>{player.coins}</Text>
-        </View>
+        </Animated.View>
       </View>
       <View style={styles.cards}>
         {player.cards.map((card, i) => {
-          const canPress = onCardPress && !card.revealed;
+          const canPress = !!onCardPress && !card.revealed;
           return (
             <Pressable
               key={i}

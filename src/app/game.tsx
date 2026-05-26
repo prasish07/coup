@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -10,6 +10,7 @@ import { ResponseBar } from '@/components/ResponseBar';
 import { GameLog } from '@/components/GameLog';
 import { CardFace } from '@/components/CardFace';
 import { Spacing } from '@/constants/theme';
+import { useSound } from '@/hooks/use-sound';
 
 interface ExchangeProps {
   gameState: GameState;
@@ -97,6 +98,8 @@ export default function GameScreen() {
   const selectExchangeCards = useGameStore((s) => s.selectExchangeCards);
 
   const [exchangeSelected, setExchangeSelected] = useState<number[]>([]);
+  const { play } = useSound();
+  const prevPhaseRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (setup) {
@@ -110,14 +113,29 @@ export default function GameScreen() {
     if (gameState?.phase !== 'exchange_select') {
       setExchangeSelected([]);
     }
+
+    const prev = prevPhaseRef.current;
+    const curr = gameState?.phase ?? null;
+    prevPhaseRef.current = curr;
+
+    if (curr === 'lose_influence') play('card_flip');
+    if (curr === 'game_over') play('victory');
+    if (prev === 'action' && curr === 'challenge_action') play('coin');
   }, [gameState?.phase]);
 
   useEffect(() => {
     if (gameState?.phase === 'game_over') {
       const winner = gameState.players.find((p) => p.cards.some((c) => !c.revealed));
+      const standings = JSON.stringify(
+        gameState.players.map((p) => ({
+          name: p.name,
+          survived: p.cards.some((c) => !c.revealed),
+          cards: p.cards.filter((c) => !c.revealed).length,
+        }))
+      );
       router.replace({
         pathname: '/game-over',
-        params: { winner: winner?.name ?? 'Unknown' },
+        params: { winner: winner?.name ?? 'Unknown', standings },
       });
     }
   }, [gameState?.phase]);
