@@ -1,4 +1,4 @@
-import { getValidActions, submitAction, resolveAction, initGame, loseInfluence, resolveExchangeSelect } from './actions';
+import { getValidActions, submitAction, resolveAction, initGame, loseInfluence, resolveExchangeSelect, getBlockers, getChallengeEligible } from './actions';
 import type { GameState, Card, Player } from './types';
 
 const makeCard = (character: Card['character'], revealed = false): Card => ({
@@ -238,6 +238,74 @@ describe('loseInfluence', () => {
     const state = makeState({ loserId: 'p1' });
     loseInfluence(state, 0);
     expect(state.players[0].cards[0].revealed).toBe(false);
+  });
+});
+
+describe('getBlockers', () => {
+  it('should return all other active players for foreign_aid', () => {
+    const state = makeState();
+    const pending = { type: 'foreign_aid' as const, playerId: 'p1' };
+    const blockers = getBlockers(state, pending);
+    expect(blockers).toContain('p2');
+    expect(blockers).not.toContain('p1');
+  });
+
+  it('should return empty array for income (unblockable)', () => {
+    const state = makeState();
+    const pending = { type: 'income' as const, playerId: 'p1' };
+    expect(getBlockers(state, pending)).toHaveLength(0);
+  });
+
+  it('should return empty array for coup (unblockable)', () => {
+    const state = makeState();
+    const pending = { type: 'coup' as const, playerId: 'p1', targetId: 'p2' };
+    expect(getBlockers(state, pending)).toHaveLength(0);
+  });
+
+  it('should exclude eliminated players', () => {
+    const eliminated = makePlayer('p3', {
+      cards: [makeCard('Duke', true), makeCard('Assassin', true)],
+    });
+    const state = makeState({
+      players: [makePlayer('p1'), makePlayer('p2'), eliminated],
+    });
+    const pending = { type: 'foreign_aid' as const, playerId: 'p1' };
+    const blockers = getBlockers(state, pending);
+    expect(blockers).not.toContain('p3');
+  });
+});
+
+describe('getChallengeEligible', () => {
+  it('should return all other active players for a claimable action', () => {
+    const state = makeState();
+    const pending = { type: 'tax' as const, playerId: 'p1', claimedCharacter: 'Duke' as const };
+    const eligible = getChallengeEligible(state, pending);
+    expect(eligible).toContain('p2');
+    expect(eligible).not.toContain('p1');
+  });
+
+  it('should return empty array for income (no claim)', () => {
+    const state = makeState();
+    const pending = { type: 'income' as const, playerId: 'p1' };
+    expect(getChallengeEligible(state, pending)).toHaveLength(0);
+  });
+
+  it('should return empty array for coup (no claim)', () => {
+    const state = makeState();
+    const pending = { type: 'coup' as const, playerId: 'p1', targetId: 'p2' };
+    expect(getChallengeEligible(state, pending)).toHaveLength(0);
+  });
+
+  it('should exclude eliminated players', () => {
+    const eliminated = makePlayer('p3', {
+      cards: [makeCard('Duke', true), makeCard('Assassin', true)],
+    });
+    const state = makeState({
+      players: [makePlayer('p1'), makePlayer('p2'), eliminated],
+    });
+    const pending = { type: 'tax' as const, playerId: 'p1', claimedCharacter: 'Duke' as const };
+    const eligible = getChallengeEligible(state, pending);
+    expect(eligible).not.toContain('p3');
   });
 });
 

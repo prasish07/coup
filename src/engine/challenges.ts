@@ -1,16 +1,7 @@
 import type { GameState, CharacterName, PendingBlock } from './types';
+import { ACTION_CLAIMED_CHARACTER } from './types';
 import { shuffle } from './deck';
-import { resolveAction, loseInfluence } from './actions';
-
-const ACTION_CLAIMED_CHARACTER: Partial<Record<string, CharacterName>> = {
-  tax: 'Duke',
-  assassinate: 'Assassin',
-  steal: 'Captain',
-  exchange: 'Ambassador',
-  block_foreign_aid: 'Duke',
-  block_assassination: 'Contessa',
-  block_steal: 'Captain',
-};
+import { resolveAction } from './actions';
 
 function replaceCard(
   state: GameState,
@@ -100,7 +91,7 @@ export function resolveBlock(
   const blocker = state.players.find((p) => p.id === block.blockerId);
   if (!blocker) return state;
 
-  const blockActionType = `block_${pending.type}` as string;
+  const blockActionType = `block_${pending.type}` as keyof typeof ACTION_CLAIMED_CHARACTER;
   const claimedCharacter = ACTION_CLAIMED_CHARACTER[blockActionType] ?? block.claimedCharacter;
 
   return {

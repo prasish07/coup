@@ -78,3 +78,13 @@ export interface ValidAction {
   type: ActionType;
   targetId?: string;
 }
+
+export const ACTION_CLAIMED_CHARACTER: Partial<Record<ActionType, CharacterName>> = {
+  tax: 'Duke',
+  assassinate: 'Assassin',
+  steal: 'Captain',
+  exchange: 'Ambassador',
+  block_foreign_aid: 'Duke',
+  block_assassination: 'Contessa',
+  block_steal: 'Captain',
+};

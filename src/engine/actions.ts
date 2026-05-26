@@ -6,18 +6,12 @@ import type {
   CharacterName,
   PlayerSetup,
 } from './types';
+import { ACTION_CLAIMED_CHARACTER } from './types';
 import { createDeck, shuffle } from './deck';
 
 const ACTION_COST: Partial<Record<string, number>> = {
   coup: 7,
   assassinate: 3,
-};
-
-const ACTION_CLAIMED_CHARACTER: Partial<Record<string, CharacterName>> = {
-  tax: 'Duke',
-  assassinate: 'Assassin',
-  steal: 'Captain',
-  exchange: 'Ambassador',
 };
 
 const BLOCKER_CHARACTERS: Partial<Record<string, CharacterName[]>> = {
