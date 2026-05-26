@@ -25,7 +25,17 @@ export type Phase =
   | 'resolve'
   | 'lose_influence'
   | 'exchange_select'
+  | 'waiting_for_llm'
   | 'game_over';
+
+export type AIMode = 'heuristic' | 'openai' | 'claude' | 'ollama';
+
+export interface LLMConfig {
+  provider: AIMode;
+  apiKey?: string;
+  endpoint?: string;
+  model?: string;
+}
 
 export interface Card {
   character: CharacterName;
@@ -72,6 +82,7 @@ export interface GameState {
 export interface PlayerSetup {
   name: string;
   isAI: boolean;
+  aiMode?: AIMode;
 }
 
 export interface ValidAction {

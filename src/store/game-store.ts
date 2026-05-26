@@ -15,6 +15,8 @@ import {
   passBlock,
 } from '@/engine/challenges';
 import { getAIDecision, shouldChallenge, shouldBlock } from '@/engine/ai';
+import { getLLMDecision } from '@/engine/llm-ai';
+import { useLLMStore } from './llm-store';
 
 interface GameStore {
   gameState: GameState | null;
@@ -273,12 +275,39 @@ function maybeRunAITurn(state: GameState): GameState {
   const current = state.players.find((p) => p.id === state.currentPlayerId);
   if (!current?.isAI) return state;
 
+  const llmConfig = useLLMStore.getState().getConfig(current.id);
+  if (llmConfig && llmConfig.provider !== 'heuristic') {
+    triggerLLMTurn(state, current.id);
+    return { ...state, phase: 'waiting_for_llm' };
+  }
+
   const afterAction = engineSubmitAction(state, getAIDecision(state));
   if (afterAction.phase === 'action') {
     const advanced = advanceTurn(afterAction);
     return maybeRunAITurn(advanced);
   }
   return maybeRunAIResponses(afterAction);
+}
+
+function triggerLLMTurn(state: GameState, playerId: string): void {
+  const llmConfig = useLLMStore.getState().getConfig(playerId);
+  if (!llmConfig) return;
+
+  getLLMDecision(state, playerId, llmConfig).then((action) => {
+    const store = useGameStore.getState();
+    if (store.gameState?.phase !== 'waiting_for_llm') return;
+    const resumed = { ...store.gameState, phase: 'action' as const };
+    const afterAction = engineSubmitAction(resumed, action);
+    let next: GameState;
+    if (afterAction.phase === 'action') {
+      next = advanceTurn(afterAction);
+      next = maybeRunAITurn(next);
+    } else {
+      next = maybeRunAIResponses(afterAction);
+      next = maybeRunAIAutomation(next);
+    }
+    useGameStore.setState({ gameState: next });
+  });
 }
 
 function getBlockCharacter(

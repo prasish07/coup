@@ -57,6 +57,8 @@ function ExchangeSelector({ gameState, selected, onToggle, onConfirm }: Exchange
 
 function getActiveHumanId(state: GameState): string | null {
   const { phase, players, pending, pendingBlock, loserId, exchangeState } = state;
+  if (phase === 'waiting_for_llm' || phase === 'game_over') return null;
+
   const isActive = (id: string) =>
     players.find((p) => p.id === id)?.cards.some((c) => !c.revealed) ?? false;
 
@@ -203,14 +205,27 @@ export default function GameScreen() {
           />
         )}
 
-        {/* AI thinking indicator */}
-        {!activeHumanId && !isLoseInfluence && !isExchangeSelect && (
-          <View style={styles.waiting}>
-            <Text style={styles.waitingText}>
-              {gameState.players.find((p) => p.id === gameState.currentPlayerId)?.name} is thinking…
+        {/* LLM thinking indicator */}
+        {gameState.phase === 'waiting_for_llm' && (
+          <View style={styles.llmWaiting}>
+            <Text style={styles.llmWaitingText}>
+              🧠 {gameState.players.find((p) => p.id === gameState.currentPlayerId)?.name} is thinking…
             </Text>
+            <Text style={styles.llmWaitingSubtext}>Consulting AI model</Text>
           </View>
         )}
+
+        {/* Heuristic AI thinking indicator */}
+        {!activeHumanId &&
+          gameState.phase !== 'waiting_for_llm' &&
+          !isLoseInfluence &&
+          !isExchangeSelect && (
+            <View style={styles.waiting}>
+              <Text style={styles.waitingText}>
+                {gameState.players.find((p) => p.id === gameState.currentPlayerId)?.name} is thinking…
+              </Text>
+            </View>
+          )}
 
         {/* Lose influence prompt */}
         {isLoseInfluence && (
@@ -338,5 +353,22 @@ const styles = StyleSheet.create({
   loadingText: {
     color: '#8888aa',
     fontSize: 16,
+  },
+  llmWaiting: {
+    padding: Spacing.three,
+    alignItems: 'center',
+    backgroundColor: '#1a1500',
+    borderTopWidth: 1,
+    borderColor: '#f59e0b',
+  },
+  llmWaitingText: {
+    color: '#f59e0b',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  llmWaitingSubtext: {
+    color: '#92661a',
+    fontSize: 11,
+    marginTop: 2,
   },
 });
