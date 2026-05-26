@@ -159,7 +159,7 @@ export function passBlock(state: GameState): GameState {
 
 export function passChallenge(state: GameState): GameState {
   if (state.phase === 'challenge_action') {
-    return resolveAction({ ...state, phase: 'resolve' });
+    return resolveAction({ ...state, phase: 'action' });
   }
   if (state.phase === 'challenge_block') {
     return passBlock(state);

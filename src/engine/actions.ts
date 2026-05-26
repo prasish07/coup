@@ -236,7 +236,7 @@ export function submitAction(state: GameState, action: ValidAction): GameState {
       ...state,
       players,
       pending,
-      phase: 'resolve',
+      phase: 'action',
     });
   }
 

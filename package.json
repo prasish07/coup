@@ -47,7 +47,8 @@
   "jest": {
     "preset": "jest-expo",
     "testMatch": [
-      "**/src/engine/**/*.test.ts"
+      "**/src/engine/**/*.test.ts",
+      "**/src/store/**/*.test.ts"
     ]
   },
   "private": true
