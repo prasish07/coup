@@ -1,4 +1,4 @@
-import type { GameState, ValidAction, LLMConfig } from './types';
+import type { GameState, ValidAction, LLMConfig, CharacterName } from './types';
 import { getValidActions } from './actions';
 import { getAIDecision } from './ai';
 
@@ -134,6 +134,114 @@ async function callOllama(prompt: string, config: LLMConfig): Promise<string> {
   if (!res.ok) throw new Error(`Ollama error: ${res.status}`);
   const data = (await res.json()) as { response: string };
   return data.response ?? '';
+}
+
+interface LLMResponse {
+  type: 'challenge' | 'block' | 'pass';
+  character?: CharacterName;
+}
+
+function buildResponsePrompt(state: GameState, responderId: string): string {
+  const responder = state.players.find((p) => p.id === responderId)!;
+  const { pending, pendingBlock, phase } = state;
+
+  const myCards = responder.cards
+    .filter((c) => !c.revealed)
+    .map((c) => c.character)
+    .join(', ');
+
+  let situationText: string;
+  let canBlock = false;
+  const blockOptions: CharacterName[] = [];
+
+  const BLOCK_CHARS: Partial<Record<string, CharacterName[]>> = {
+    foreign_aid: ['Duke'],
+    assassinate: ['Contessa'],
+    steal: ['Captain', 'Ambassador'],
+  };
+
+  if (phase === 'challenge_action' && pending) {
+    const actor = state.players.find((p) => p.id === pending.playerId)!;
+    situationText = `${actor.name} claims to be ${pending.claimedCharacter ?? 'unknown'} and wants to use ${pending.type}.`;
+    const possible = BLOCK_CHARS[pending.type] ?? [];
+    blockOptions.push(
+      ...possible.filter((c) =>
+        responder.cards.some((card) => card.character === c && !card.revealed)
+      )
+    );
+    canBlock = blockOptions.length > 0;
+  } else if (phase === 'challenge_block' && pendingBlock) {
+    const blocker = state.players.find((p) => p.id === pendingBlock.blockerId)!;
+    situationText = `${blocker.name} is blocking as ${pendingBlock.claimedCharacter}.`;
+  } else {
+    situationText = 'Unknown situation.';
+  }
+
+  const options = [
+    `{"response": "challenge"} — call their bluff; they lose influence if caught lying, you lose if they're honest`,
+    canBlock
+      ? blockOptions.map((c) => `{"response": "block", "character": "${c}"} — block as ${c}`).join('\n')
+      : null,
+    `{"response": "pass"} — allow it to proceed`,
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  return `You are playing Coup. You must respond to another player's action.
+
+SITUATION: ${situationText}
+
+YOUR STATUS:
+- Name: ${responder.name}
+- Coins: ${responder.coins}
+- Your secret cards: ${myCards || 'none remaining'}
+
+RECENT EVENTS:
+${state.log.slice(-3).join('\n') || 'Game just started'}
+
+YOUR OPTIONS:
+${options}
+
+Respond with ONLY one JSON object. No explanation.`;
+}
+
+function parseResponse(text: string): LLMResponse | null {
+  const match = text.match(/\{[^}]+\}/);
+  if (!match) return null;
+  try {
+    const parsed = JSON.parse(match[0]) as { response?: string; character?: string };
+    if (parsed.response === 'challenge') return { type: 'challenge' };
+    if (parsed.response === 'block' && parsed.character)
+      return { type: 'block', character: parsed.character as CharacterName };
+    if (parsed.response === 'pass') return { type: 'pass' };
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export async function getLLMResponse(
+  state: GameState,
+  responderId: string,
+  config: LLMConfig
+): Promise<LLMResponse> {
+  const fallback = (): LLMResponse => ({ type: 'pass' });
+
+  try {
+    const prompt = buildResponsePrompt(state, responderId);
+    let text: string;
+
+    switch (config.provider) {
+      case 'openai': text = await callOpenAI(prompt, config); break;
+      case 'claude': text = await callClaude(prompt, config); break;
+      case 'ollama': text = await callOllama(prompt, config); break;
+      default: return fallback();
+    }
+
+    return parseResponse(text) ?? fallback();
+  } catch {
+    return fallback();
+  }
 }
 
 export async function getLLMDecision(
