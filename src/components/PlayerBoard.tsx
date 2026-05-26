@@ -21,16 +21,11 @@ interface Props {
 export function PlayerBoard({ player, faceUp, isCurrentTurn = false, onCardPress }: Props) {
   const isEliminated = player.cards.every((c) => c.revealed);
   const coinScale = useSharedValue(1);
-  const coinColor = useSharedValue(0);
 
   useEffect(() => {
     coinScale.value = withSequence(
       withTiming(1.5, { duration: 120 }),
       withSpring(1, { damping: 6, stiffness: 200 })
-    );
-    coinColor.value = withSequence(
-      withTiming(1, { duration: 120 }),
-      withTiming(0, { duration: 400 })
     );
   }, [player.coins]);
 

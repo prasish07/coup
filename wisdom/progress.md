@@ -15,7 +15,7 @@ Read this at the start of every session to know exactly where we are.
 | 2 | Game Engine (pure logic) | ✅ Done (reviewed — warnings, see wisdom/mistakes.md) | ⚠️ PASS WITH WARNINGS |
 | 3 | Zustand Store | ✅ Done (reviewed — warnings, see wisdom/mistakes.md) | ⚠️ PASS WITH WARNINGS |
 | 4 | Screens & UI | ✅ Done (reviewed — warnings, see wisdom/mistakes.md) | ⚠️ PASS WITH WARNINGS |
-| 5 | Polish (animations, sound) | 🔲 Not started | 🔲 Pending |
+| 5 | Polish (animations, sound) | ✅ Done (reviewed — warnings, see wisdom/mistakes.md) | ⚠️ PASS WITH WARNINGS |
 
 ### Phase Completion Rule
 **After every phase from Phase 2 onwards:**
@@ -195,7 +195,11 @@ src/components/
 
 ---
 
-## Phase 5 — Polish 🔲
+## Phase 5 — Polish ✅ (reviewed — warnings)
+
+**Review result:** PASS WITH WARNINGS
+**Review date:** 2026-05-26
+**Findings:** 93 tests passing, 0 TypeScript errors. All 5 deliverables present. Two warnings: (1) `PlayerBoard.coinColor` is a `useSharedValue` that is animated but never consumed by any `useAnimatedStyle` or applied to JSX — dead animation code; (2) the second and third `useEffect` in `game.tsx` were expanded in Phase 5 to reference `play` and `router` respectively but neither was added to the deps array nor got a suppression comment, repeating the exhaustive-deps pattern flagged in Phase 4. Both are non-blocking. All animations use `transform`, no `width`/`height` animated. All styles in `StyleSheet.create`. No `any` types. No `console.log` left in source.
 
 **Goal:** Animations, sound, final UX pass.
 

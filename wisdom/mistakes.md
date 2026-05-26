@@ -44,6 +44,16 @@ Things that went wrong during this project. Read before starting any new task.
 **Why it was wrong:** Dead code in a public interface is confusing — callers may pass the prop expecting an effect, and future maintainers may not realise it does nothing. TypeScript `strict` mode does not flag unused destructured parameters, so this silently accumulates.
 **Rule:** Every prop in a component's `Props` interface must be actively used in the JSX or component logic. If a prop is not yet implemented, either add the implementation or remove it from the interface.
 
+## Dead useSharedValue declared but never consumed in useAnimatedStyle (Phase 5)
+**What happened:** `PlayerBoard.tsx` declares `coinColor = useSharedValue(0)` and animates it inside a `useEffect`, but `coinColor.value` is never read inside any `useAnimatedStyle` callback and the animated value is never applied to any JSX node.
+**Why it was wrong:** The shared value drives no visual output — the animation fires on every coin change but produces no effect. It also keeps a Reanimated worklet alive on the UI thread for no reason. This is the same pattern as Phase 4's dead `isActive` prop: code that looks like it does something but silently does nothing.
+**Rule:** Every `useSharedValue` must be consumed by at least one `useAnimatedStyle` (or passed directly as an animated prop). After writing a shared value, immediately verify it appears in a `useAnimatedStyle` return value or an `Animated.*` prop. If the visual effect is not yet implemented, remove the shared value rather than leaving dead animation code.
+
+## useEffect references new values without updating deps or adding suppression comment (Phase 5)
+**What happened:** In `game.tsx` the second `useEffect` (dep: `[gameState?.phase]`) was expanded in Phase 5 to call `play('card_flip')` and read `prevPhaseRef.current`, but `play` (a `useCallback` from `useSound`) was not added to the deps array and no suppression comment was added. The third `useEffect` (dep: `[gameState?.phase]`) was similarly expanded to access `gameState.players` for building `standings` and `router.replace`, but neither `gameState` nor `router` was added to the deps.
+**Why it was wrong:** Both `play` (stable `useCallback`) and `router` (stable Expo Router ref) are referentially stable so there is no actual stale-closure bug at runtime. However, the code now has exhaustive-deps violations that silently bake in an assumption about stability that is not expressed or enforced anywhere. The Phase 4 review already flagged this pattern in the first `useEffect` and required a suppression comment — the Phase 5 additions repeated the pattern without following the established fix.
+**Rule:** When expanding an existing `useEffect` to reference new values, either (a) add those values to the deps array, or (b) add an `// eslint-disable-next-line react-hooks/exhaustive-deps` comment with an explicit reason for each value omitted. Never silently rely on incidental referential stability.
+
 <!-- Add entries as mistakes are discovered. Format:
 
 ## [Short title]

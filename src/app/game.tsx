@@ -121,6 +121,7 @@ export default function GameScreen() {
     if (curr === 'lose_influence') play('card_flip');
     if (curr === 'game_over') play('victory');
     if (prev === 'action' && curr === 'challenge_action') play('coin');
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- play is stable (useCallback), prevPhaseRef is a ref
   }, [gameState?.phase]);
 
   useEffect(() => {
@@ -138,6 +139,7 @@ export default function GameScreen() {
         params: { winner: winner?.name ?? 'Unknown', standings },
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- gameState is current when phase changes; router is stable
   }, [gameState?.phase]);
 
   if (!gameState) {

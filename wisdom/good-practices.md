@@ -39,6 +39,16 @@ Approaches that worked well. Read before starting any new task.
 **Why it worked:** Keeps the component function body free of phase-switching logic. The helper is a pure function of `GameState` — it is trivially testable if needed and clearly separated from rendering concerns. It could be unit tested without mounting the component.
 **Rule:** When a component needs to derive a non-trivial value from game state (especially phase-based branching), extract the derivation into a module-level pure function before the component. This keeps the component body readable and the logic independently auditable.
 
+## Graceful-fallback sound hook with asset-presence guard (Phase 5)
+**What was done:** `use-sound.ts` defines `SOUND_FILES` as `Partial<Record<SoundName, number>>` with all `require()` calls commented out. `play()` checks `if (!source) return` before doing anything. All `Audio` calls are wrapped in `try/catch` that silently swallows errors. The cleanup `useEffect` calls `unloadAsync()` on every cached sound on unmount.
+**Why it worked:** The game renders and plays without crashing even though no `.mp3` files exist in `assets/sounds/` yet. Adding a sound is a one-line uncomment — no structural change needed. The partial record means TypeScript enforces the `SoundName` union on `play()` calls while still allowing a subset of sounds to be present. Cleanup prevents `expo-av` memory leaks on navigation.
+**Rule:** For optional media assets, use `Partial<Record<SoundName, AssetType>>` with a null-guard at the call site rather than conditional requires. Wrap all `Audio` calls in try/catch. Always unload sounds in the `useEffect` cleanup.
+
+## babel-plugin-transform-remove-console scoped to production only (Phase 5)
+**What was done:** `babel.config.js` checks `process.env.NODE_ENV === 'production'` before pushing `transform-remove-console` into the plugins array. Development builds retain all console output; production builds strip it automatically at bundle time.
+**Why it worked:** Developers keep full console visibility during debugging without any manual cleanup. Production bundles eliminate the JS-thread blocking that console calls cause (anti-pattern #10). The guard is a single `if` around `plugins.push` — zero maintenance overhead.
+**Rule:** Always scope `babel-plugin-transform-remove-console` to `NODE_ENV === 'production'` in `babel.config.js`. Never add it unconditionally or it will suppress console output in development too.
+
 <!-- Add entries when something works especially well. Format:
 
 ## [Short title]
