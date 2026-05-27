@@ -80,6 +80,7 @@ function parseAction(text: string, validActions: ValidAction[]): ValidAction | n
 
 async function callOpenAI(prompt: string, config: LLMConfig): Promise<string> {
   const model = config.model ?? 'gpt-4o-mini';
+  console.log('[LLM→OpenAI]', model, '\n--- PROMPT ---\n', prompt);
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -95,11 +96,14 @@ async function callOpenAI(prompt: string, config: LLMConfig): Promise<string> {
   });
   if (!res.ok) throw new Error(`OpenAI error: ${res.status}`);
   const data = (await res.json()) as { choices: { message: { content: string } }[] };
-  return data.choices[0]?.message?.content ?? '';
+  const text = data.choices[0]?.message?.content ?? '';
+  console.log('[LLM←OpenAI] raw response:', JSON.stringify(text));
+  return text;
 }
 
 async function callClaude(prompt: string, config: LLMConfig): Promise<string> {
   const model = config.model ?? 'claude-haiku-4-5-20251001';
+  console.log('[LLM→Claude]', model, '\n--- PROMPT ---\n', prompt);
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -115,12 +119,15 @@ async function callClaude(prompt: string, config: LLMConfig): Promise<string> {
   });
   if (!res.ok) throw new Error(`Claude error: ${res.status}`);
   const data = (await res.json()) as { content: { text: string }[] };
-  return data.content[0]?.text ?? '';
+  const text = data.content[0]?.text ?? '';
+  console.log('[LLM←Claude] raw response:', JSON.stringify(text));
+  return text;
 }
 
 async function callOllama(prompt: string, config: LLMConfig): Promise<string> {
   const endpoint = (config.endpoint ?? 'http://localhost:11434').replace(/\/$/, '');
   const model = config.model ?? 'llama3.2';
+  console.log(`[LLM→Local] ${endpoint}  model=${model}\n--- PROMPT ---\n`, prompt);
   const res = await fetch(`${endpoint}/v1/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -134,7 +141,9 @@ async function callOllama(prompt: string, config: LLMConfig): Promise<string> {
   });
   if (!res.ok) throw new Error(`Local LLM error: ${res.status}`);
   const data = (await res.json()) as { choices: { message: { content: string } }[] };
-  return data.choices[0]?.message?.content ?? '';
+  const text = data.choices[0]?.message?.content ?? '';
+  console.log('[LLM←Local] raw response:', JSON.stringify(text));
+  return text;
 }
 
 interface LLMResponse {
@@ -234,7 +243,11 @@ export async function getLLMResponse(
   responderId: string,
   config: LLMConfig
 ): Promise<LLMResponse> {
-  const fallback = (): LLMResponse => ({ type: 'pass' });
+  const responder = state.players.find((p) => p.id === responderId);
+  const fallback = (): LLMResponse => {
+    console.log(`[LLM] ${responder?.name} response → FALLBACK pass`);
+    return { type: 'pass' };
+  };
 
   try {
     const prompt = buildResponsePrompt(state, responderId);
@@ -247,8 +260,11 @@ export async function getLLMResponse(
       default: return fallback();
     }
 
-    return parseResponse(text) ?? fallback();
-  } catch {
+    const result = parseResponse(text) ?? fallback();
+    console.log(`[LLM] ${responder?.name} response parsed:`, JSON.stringify(result));
+    return result;
+  } catch (err) {
+    console.log(`[LLM] ${responder?.name} response ERROR:`, err);
     return fallback();
   }
 }
@@ -258,8 +274,13 @@ export async function getLLMDecision(
   playerId: string,
   config: LLMConfig
 ): Promise<ValidAction> {
+  const player = state.players.find((p) => p.id === playerId);
   const validActions = getValidActions({ ...state, currentPlayerId: playerId });
-  const fallback = () => getAIDecision({ ...state, currentPlayerId: playerId });
+  const fallback = () => {
+    const action = getAIDecision({ ...state, currentPlayerId: playerId });
+    console.log(`[LLM] ${player?.name} turn → FALLBACK heuristic:`, JSON.stringify(action));
+    return action;
+  };
 
   if (validActions.length === 0) return fallback();
 
@@ -282,8 +303,14 @@ export async function getLLMDecision(
     }
 
     const action = parseAction(response, validActions);
+    if (action) {
+      console.log(`[LLM] ${player?.name} turn parsed:`, JSON.stringify(action));
+    } else {
+      console.log(`[LLM] ${player?.name} turn parse FAILED, raw:`, JSON.stringify(response), '→ using fallback');
+    }
     return action ?? fallback();
-  } catch {
+  } catch (err) {
+    console.log(`[LLM] ${player?.name} turn ERROR:`, err);
     return fallback();
   }
 }
