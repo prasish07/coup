@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { AIMode, LLMConfig } from '@/engine/types';
+import { useGameStore } from '@/store/game-store';
 import { useLLMStore } from '@/store/llm-store';
 import { Spacing } from '@/constants/theme';
 
@@ -52,6 +53,7 @@ export default function LobbyScreen() {
   const router = useRouter();
   const setLLMConfig = useLLMStore((s) => s.setConfig);
   const clearLLMConfigs = useLLMStore((s) => s.clearConfigs);
+  const resetGame = useGameStore((s) => s.resetGame);
 
   const [count, setCount] = useState(2);
   const [slots, setSlots] = useState<PlayerSlot[]>(
@@ -83,6 +85,10 @@ export default function LobbyScreen() {
   }
 
   function startGame() {
+    // Reset stale game state first — if game.tsx mounts while gameState.phase is still
+    // 'game_over' from the previous game, its phase-watch effect would immediately navigate
+    // back to game-over before startGame() in the mount effect has a chance to run.
+    resetGame();
     clearLLMConfigs();
     activeSlots.forEach((slot, i) => {
       const playerId = `p${i + 1}`;
