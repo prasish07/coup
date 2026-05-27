@@ -56,7 +56,10 @@ export function CardFace({ character, faceUp, revealed }: Props) {
   const color = CHARACTER_COLOR[character];
 
   return (
-    <View style={styles.container}>
+    // collapsable={false} — prevents Android Fabric from collapsing this node,
+    // which would orphan the absoluteFill Animated.View children and cause
+    // "addViewAt: child already has a parent" crashes during rapid state updates.
+    <View style={styles.container} collapsable={false}>
       <Animated.View style={[StyleSheet.absoluteFill, styles.card, styles.cardBack, backStyle]} />
       <Animated.View
         style={[

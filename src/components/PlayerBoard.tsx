@@ -34,7 +34,9 @@ export function PlayerBoard({ player, faceUp, isCurrentTurn = false, onCardPress
   }));
 
   return (
-    <View style={[styles.container, isCurrentTurn && styles.activeBorder, isEliminated && styles.eliminated]}>
+    // collapsable={false} — coin badge is an Animated.View; prevent Android Fabric
+    // from collapsing this node during rapid LLM state updates.
+    <View style={[styles.container, isCurrentTurn && styles.activeBorder, isEliminated && styles.eliminated]} collapsable={false}>
       <View style={styles.header}>
         <Text style={[styles.name, isEliminated && styles.nameEliminated]} numberOfLines={1}>
           {player.name}
@@ -48,9 +50,12 @@ export function PlayerBoard({ player, faceUp, isCurrentTurn = false, onCardPress
       <View style={styles.cards}>
         {player.cards.map((card, i) => {
           const canPress = !!onCardPress && !card.revealed;
+          // Stable key: character + slot index so Fabric doesn't reuse the wrong Animated.View
+          // when a card is revealed (changing faceUp/revealed props on a new card object).
+          const cardKey = `${card.character}-${i}`;
           return (
             <Pressable
-              key={i}
+              key={cardKey}
               onPress={() => canPress && onCardPress(i)}
               style={[styles.cardWrapper, canPress && styles.cardPressable]}
             >
