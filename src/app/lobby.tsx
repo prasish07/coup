@@ -39,7 +39,7 @@ const DEFAULT_LLM: LLMSlotConfig = {
 const PROVIDER_LABELS: Record<Exclude<AIMode, 'heuristic'>, string> = {
   openai: 'OpenAI',
   claude: 'Claude',
-  ollama: 'Ollama',
+  ollama: 'Local (Ollama/LM Studio)',
 };
 
 const MODEL_PLACEHOLDERS: Record<Exclude<AIMode, 'heuristic'>, string> = {
@@ -221,13 +221,13 @@ export default function LobbyScreen() {
                   />
                 )}
 
-                {/* Endpoint — Ollama */}
+                {/* Endpoint — Ollama / LM Studio */}
                 {slot.llm.provider === 'ollama' && (
                   <TextInput
                     style={styles.keyInput}
                     value={slot.llm.endpoint}
                     onChangeText={(v) => updateLLM(i, { endpoint: v })}
-                    placeholder="http://localhost:11434"
+                    placeholder="http://IP:port  (e.g. 192.168.1.14:1234)"
                     placeholderTextColor="#444"
                     autoCapitalize="none"
                     autoCorrect={false}

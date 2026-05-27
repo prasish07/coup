@@ -119,21 +119,22 @@ async function callClaude(prompt: string, config: LLMConfig): Promise<string> {
 }
 
 async function callOllama(prompt: string, config: LLMConfig): Promise<string> {
-  const endpoint = config.endpoint ?? 'http://localhost:11434';
+  const endpoint = (config.endpoint ?? 'http://localhost:11434').replace(/\/$/, '');
   const model = config.model ?? 'llama3.2';
-  const res = await fetch(`${endpoint}/api/generate`, {
+  const res = await fetch(`${endpoint}/v1/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model,
-      prompt,
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 64,
+      temperature: 0.3,
       stream: false,
-      options: { temperature: 0.3, num_predict: 64 },
     }),
   });
-  if (!res.ok) throw new Error(`Ollama error: ${res.status}`);
-  const data = (await res.json()) as { response: string };
-  return data.response ?? '';
+  if (!res.ok) throw new Error(`Local LLM error: ${res.status}`);
+  const data = (await res.json()) as { choices: { message: { content: string } }[] };
+  return data.choices[0]?.message?.content ?? '';
 }
 
 interface LLMResponse {
