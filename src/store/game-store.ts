@@ -254,12 +254,21 @@ function maybeRunAIAutomation(state: GameState): GameState {
 
       if (next.phase === 'game_over') return next;
 
+      // W2: block was challenged and blocker bluffed — original action still resolves
       const blockerWasExposed =
         prevState.pending !== null &&
         prevState.pendingBlock !== null &&
         prevState.loserId === prevState.pendingBlock.blockerId;
 
-      if (blockerWasExposed && next.phase === 'action') {
+      // W3: direct challenge failed (AI auto-reveals) — challenger lost, action still resolves
+      const failedChallengeNeedsResolution =
+        prevState.pending !== null &&
+        prevState.pendingBlock === null &&
+        prevState.pending.type !== 'income' &&
+        prevState.loserId !== null &&
+        prevState.loserId !== prevState.pending.playerId;
+
+      if ((blockerWasExposed || failedChallengeNeedsResolution) && next.phase === 'action') {
         next = resolveAction({ ...next, pending: prevState.pending });
       }
 
@@ -313,28 +322,49 @@ function triggerLLMResponse(state: GameState, responderId: string): void {
 
   const originalPhase = state.phase as 'challenge_action' | 'challenge_block';
 
-  getLLMResponse(state, responderId, llmConfig).then((decision) => {
+  const fallbackToPass = () => {
     const store = useGameStore.getState();
     if (store.gameState?.phase !== 'waiting_for_llm') return;
-
     const resumed = { ...store.gameState, phase: originalPhase };
-    let next: GameState;
-
-    if (decision.type === 'challenge') {
-      next = originalPhase === 'challenge_action'
-        ? resolveChallenge(resumed, responderId)
-        : resolveChallengeBlock(resumed, responderId);
-    } else if (decision.type === 'block' && decision.character) {
-      next = resolveBlock(resumed, { blockerId: responderId, claimedCharacter: decision.character });
-      next = maybeRunAIResponses(next);
-    } else {
-      // pass — remove this AI from consideration and continue with remaining responders
-      next = maybeRunAIResponsesExcluding(resumed, responderId);
-    }
-
-    next = maybeRunAIAutomation(next);
+    const next = maybeRunAIAutomation(maybeRunAIResponsesExcluding(resumed, responderId));
     useGameStore.setState({ gameState: next });
-  });
+  };
+
+  getLLMResponse(state, responderId, llmConfig)
+    .then((decision) => {
+      const store = useGameStore.getState();
+      if (store.gameState?.phase !== 'waiting_for_llm') return;
+
+      const resumed = { ...store.gameState, phase: originalPhase };
+      let next: GameState;
+
+      if (decision.type === 'challenge') {
+        // Only challenge if the action actually has a claimed character to challenge
+        const challengeIsValid =
+          originalPhase === 'challenge_action'
+            ? resumed.pending?.claimedCharacter != null
+            : true;
+
+        if (!challengeIsValid) {
+          // LLM tried to challenge an unchallengeable action — treat as pass
+          next = maybeRunAIResponsesExcluding(resumed, responderId);
+        } else {
+          next = originalPhase === 'challenge_action'
+            ? resolveChallenge(resumed, responderId)
+            : resolveChallengeBlock(resumed, responderId);
+        }
+      } else if (decision.type === 'block' && decision.character) {
+        next = resolveBlock(resumed, { blockerId: responderId, claimedCharacter: decision.character });
+        next = maybeRunAIResponses(next);
+      } else {
+        // pass — remove this AI from consideration and continue with remaining responders
+        next = maybeRunAIResponsesExcluding(resumed, responderId);
+      }
+
+      next = maybeRunAIAutomation(next);
+      useGameStore.setState({ gameState: next });
+    })
+    .catch(fallbackToPass);
 }
 
 function maybeRunAIResponsesExcluding(state: GameState, excludeId: string): GameState {
@@ -421,10 +451,11 @@ function triggerLLMTurn(state: GameState, playerId: string): void {
   const llmConfig = useLLMStore.getState().getConfig(playerId);
   if (!llmConfig) return;
 
-  getLLMDecision(state, playerId, llmConfig).then((action) => {
+  const fallbackToHeuristic = () => {
     const store = useGameStore.getState();
     if (store.gameState?.phase !== 'waiting_for_llm') return;
     const resumed = { ...store.gameState, phase: 'action' as const };
+    const action = getAIDecision(resumed);
     const afterAction = engineSubmitAction(resumed, action);
     let next: GameState;
     if (afterAction.phase === 'action') {
@@ -435,7 +466,25 @@ function triggerLLMTurn(state: GameState, playerId: string): void {
       next = maybeRunAIAutomation(next);
     }
     useGameStore.setState({ gameState: next });
-  });
+  };
+
+  getLLMDecision(state, playerId, llmConfig)
+    .then((action) => {
+      const store = useGameStore.getState();
+      if (store.gameState?.phase !== 'waiting_for_llm') return;
+      const resumed = { ...store.gameState, phase: 'action' as const };
+      const afterAction = engineSubmitAction(resumed, action);
+      let next: GameState;
+      if (afterAction.phase === 'action') {
+        next = advanceTurn(afterAction);
+        next = maybeRunAITurn(next);
+      } else {
+        next = maybeRunAIResponses(afterAction);
+        next = maybeRunAIAutomation(next);
+      }
+      useGameStore.setState({ gameState: next });
+    })
+    .catch(fallbackToHeuristic);
 }
 
 function getBlockCharacter(

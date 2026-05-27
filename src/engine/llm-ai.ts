@@ -161,9 +161,13 @@ function buildResponsePrompt(state: GameState, responderId: string): string {
     steal: ['Captain', 'Ambassador'],
   };
 
+  let canChallenge = false;
+
   if (phase === 'challenge_action' && pending) {
     const actor = state.players.find((p) => p.id === pending.playerId)!;
-    situationText = `${actor.name} claims to be ${pending.claimedCharacter ?? 'unknown'} and wants to use ${pending.type}.`;
+    situationText = pending.claimedCharacter
+      ? `${actor.name} claims to be ${pending.claimedCharacter} and wants to use ${pending.type}.`
+      : `${actor.name} wants to use ${pending.type} (this action cannot be challenged, only blocked or passed).`;
     const possible = BLOCK_CHARS[pending.type] ?? [];
     blockOptions.push(
       ...possible.filter((c) =>
@@ -171,15 +175,19 @@ function buildResponsePrompt(state: GameState, responderId: string): string {
       )
     );
     canBlock = blockOptions.length > 0;
+    canChallenge = pending.claimedCharacter != null;
   } else if (phase === 'challenge_block' && pendingBlock) {
     const blocker = state.players.find((p) => p.id === pendingBlock.blockerId)!;
     situationText = `${blocker.name} is blocking as ${pendingBlock.claimedCharacter}.`;
+    canChallenge = true;
   } else {
     situationText = 'Unknown situation.';
   }
 
   const options = [
-    `{"response": "challenge"} — call their bluff; they lose influence if caught lying, you lose if they're honest`,
+    canChallenge
+      ? `{"response": "challenge"} — call their bluff; they lose influence if caught lying, you lose if they're honest`
+      : null,
     canBlock
       ? blockOptions.map((c) => `{"response": "block", "character": "${c}"} — block as ${c}`).join('\n')
       : null,
