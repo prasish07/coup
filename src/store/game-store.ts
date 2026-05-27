@@ -15,7 +15,7 @@ import {
   passBlock,
 } from '@/engine/challenges';
 import { getAIDecision, shouldChallenge, shouldBlock } from '@/engine/ai';
-import { getLLMDecision, getLLMResponse } from '@/engine/llm-ai';
+import { getLLMDecision, getLLMResponse, getLLMExchangeDecision } from '@/engine/llm-ai';
 import { useLLMStore } from './llm-store';
 
 interface GameStore {
@@ -285,8 +285,12 @@ function maybeRunAIAutomation(state: GameState): GameState {
   if (state.phase === 'exchange_select' && state.exchangeState) {
     const exchanger = state.players.find((p) => p.id === state.exchangeState!.playerId);
     if (exchanger?.isAI) {
+      const llmConfig = useLLMStore.getState().getConfig(exchanger.id);
+      if (llmConfig && llmConfig.provider !== 'heuristic') {
+        triggerLLMExchange(state, exchanger.id);
+        return { ...state, phase: 'waiting_for_llm' };
+      }
       const keepCount = exchanger.cards.filter((c) => !c.revealed).length;
-      // Keep own cards (first keepCount indices), discard drawn cards
       const keptIndices = Array.from({ length: keepCount }, (_, i) => i);
       let next = resolveExchangeSelect(state, keptIndices);
       next = advanceTurn(next);
@@ -445,6 +449,37 @@ function maybeRunAIResponsesWithSkip(state: GameState, skipId: string): GameStat
   }
 
   return next;
+}
+
+function triggerLLMExchange(state: GameState, playerId: string): void {
+  const llmConfig = useLLMStore.getState().getConfig(playerId);
+  if (!llmConfig) return;
+
+  const fallbackToFirst = () => {
+    const store = useGameStore.getState();
+    if (store.gameState?.phase !== 'waiting_for_llm') return;
+    const resumed = { ...store.gameState, phase: 'exchange_select' as const };
+    const exchanger = resumed.players.find((p) => p.id === playerId);
+    if (!exchanger) return;
+    const keepCount = exchanger.cards.filter((c) => !c.revealed).length;
+    const keptIndices = Array.from({ length: keepCount }, (_, i) => i);
+    let next = resolveExchangeSelect(resumed, keptIndices);
+    next = advanceTurn(next);
+    next = maybeRunAITurn(next);
+    useGameStore.setState({ gameState: next });
+  };
+
+  getLLMExchangeDecision(state, playerId, llmConfig)
+    .then((keptIndices) => {
+      const store = useGameStore.getState();
+      if (store.gameState?.phase !== 'waiting_for_llm') return;
+      const resumed = { ...store.gameState, phase: 'exchange_select' as const };
+      let next = resolveExchangeSelect(resumed, keptIndices);
+      next = advanceTurn(next);
+      next = maybeRunAITurn(next);
+      useGameStore.setState({ gameState: next });
+    })
+    .catch(fallbackToFirst);
 }
 
 function triggerLLMTurn(state: GameState, playerId: string): void {

@@ -151,6 +151,50 @@ interface LLMResponse {
   character?: CharacterName;
 }
 
+function buildExchangePrompt(state: GameState, playerId: string): string {
+  const player = state.players.find((p) => p.id === playerId)!;
+  const { exchangeState } = state;
+  if (!exchangeState) return '';
+
+  const activeCards = player.cards.filter((c) => !c.revealed);
+  const allOptions = [...activeCards, ...exchangeState.drawnCards];
+  const keepCount = activeCards.length;
+
+  const cardList = allOptions
+    .map(
+      (c, i) =>
+        `  Index ${i}: ${c.character}${i < activeCards.length ? ' (your current card)' : ' (drawn from deck)'}`
+    )
+    .join('\n');
+
+  const opponents = state.players
+    .filter((p) => p.id !== playerId)
+    .map((p) => {
+      const alive = p.cards.filter((c) => !c.revealed).length;
+      return `${p.name}: ${p.coins} coins, ${alive} influence card${alive !== 1 ? 's' : ''}`;
+    })
+    .join('\n');
+
+  const exampleIndices = Array.from({ length: keepCount }, (_, i) => i).join(', ');
+
+  return `You are playing Coup. You used Ambassador to exchange cards with the deck.
+
+AVAILABLE CARDS (choose ${keepCount} to keep):
+${cardList}
+
+OPPONENTS:
+${opponents}
+
+RECENT EVENTS:
+${state.log.slice(-3).join('\n') || 'Game just started'}
+
+STRATEGY: Keep cards that match your bluffing plans. Assassin + coins is powerful. Duke gives stable income.
+You must keep exactly ${keepCount} card${keepCount !== 1 ? 's' : ''} from the list above.
+
+Respond with ONLY this JSON (replace indices with your choice from 0 to ${allOptions.length - 1}):
+{"keep": [${exampleIndices}]}`;
+}
+
 function buildResponsePrompt(state: GameState, responderId: string): string {
   const responder = state.players.find((p) => p.id === responderId)!;
   const { pending, pendingBlock, phase } = state;
@@ -311,6 +355,64 @@ export async function getLLMDecision(
     return action ?? fallback();
   } catch (err) {
     console.log(`[LLM] ${player?.name} turn ERROR:`, err);
+    return fallback();
+  }
+}
+
+export async function getLLMExchangeDecision(
+  state: GameState,
+  playerId: string,
+  config: LLMConfig
+): Promise<number[]> {
+  const player = state.players.find((p) => p.id === playerId)!;
+  const { exchangeState } = state;
+  if (!exchangeState) return [];
+
+  const activeCards = player.cards.filter((c) => !c.revealed);
+  const keepCount = activeCards.length;
+  const totalOptions = activeCards.length + exchangeState.drawnCards.length;
+
+  const fallback = (): number[] => {
+    const indices = Array.from({ length: keepCount }, (_, i) => i);
+    console.log(`[LLM] ${player.name} exchange → FALLBACK keep first ${keepCount}:`, indices);
+    return indices;
+  };
+
+  try {
+    const prompt = buildExchangePrompt(state, playerId);
+    console.log(`[LLM→Exchange] ${player.name}\n--- PROMPT ---\n`, prompt);
+    let text: string;
+
+    switch (config.provider) {
+      case 'openai': text = await callOpenAI(prompt, config); break;
+      case 'claude': text = await callClaude(prompt, config); break;
+      case 'ollama': text = await callOllama(prompt, config); break;
+      default: return fallback();
+    }
+
+    const match = text.match(/\{[^}]+\}/);
+    if (!match) {
+      console.log(`[LLM] ${player.name} exchange parse FAILED (no JSON), raw:`, JSON.stringify(text));
+      return fallback();
+    }
+
+    const parsed = JSON.parse(match[0]) as { keep?: unknown };
+    const keep = parsed.keep;
+
+    if (
+      !Array.isArray(keep) ||
+      keep.length !== keepCount ||
+      !(keep as unknown[]).every((i) => typeof i === 'number' && i >= 0 && i < totalOptions) ||
+      new Set(keep as number[]).size !== keep.length
+    ) {
+      console.log(`[LLM] ${player.name} exchange parse INVALID:`, JSON.stringify(text));
+      return fallback();
+    }
+
+    console.log(`[LLM] ${player.name} exchange parsed keep:`, keep);
+    return keep as number[];
+  } catch (err) {
+    console.log(`[LLM] ${player.name} exchange ERROR:`, err);
     return fallback();
   }
 }
